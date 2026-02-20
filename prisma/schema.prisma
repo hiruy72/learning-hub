@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MENTOR
+  MENTEE
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  password         String
+  name             String?
+  imageUrl         String?
+  role             Role              @default(MENTEE)
+  bio              String?
+  department       String?
+  year             String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  mentorApplications MentorApplication[]
+  communitiesOwned   Community[]       @relation("MentorCommunities")
+  communitiesJoined  CommunityMember[]
+  blogs            Blog[]
+  comments         Comment[]
+  likes            Like[]
+  sentMessages     Message[]         @relation("SentMessages")
+  receivedMessages Message[]         @relation("ReceivedMessages")
+  examAttempts     ExamAttempt[]
+  givenRatings     Rating[]          @relation("GivenRatings")
+  receivedRatings  Rating[]          @relation("ReceivedRatings")
+  notifications     Notification[]
+}
+
+model MentorApplication {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  bio              String
+  department       String
+  year             String
+  motivation       String
+  gradeReportLink  String
+  nationalIdLink   String
+  status           ApplicationStatus @default(PENDING)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model Community {
+  id          String            @id @default(cuid())
+  title       String
+  description String
+  department  String
+  meetLink    String?
+  mentorId    String
+  mentor      User              @relation("MentorCommunities", fields: [mentorId], references: [id])
+  members     CommunityMember[]
+  messages    Message[]         @relation("CommunityMessages")
+  resources   Resource[]
+  exams       Exam[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model CommunityMember {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+  joinedAt    DateTime  @default(now())
+  @@unique([userId, communityId])
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  content     String
+  senderId    String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String?
+  receiver    User?     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  communityId String?
+  community   Community? @relation("CommunityMessages", fields: [communityId], references: [id])
+  seen        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+model Resource {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  fileUrl     String?
+  link        String?
+  type        String
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+  uploaderId  String
+  createdAt   DateTime  @default(now())
+}
+
+model Exam {
+  id          String        @id @default(cuid())
+  title       String
+  timeLimit   Int
+  communityId String
+  community   Community     @relation(fields: [communityId], references: [id])
+  questions   Question[]
+  attempts    ExamAttempt[]
+  createdAt   DateTime      @default(now())
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  text        String
+  options     String[] 
+  answer      Int
+}
+
+model ExamAttempt {
+  id        String   @id @default(cuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  score     Int
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  score     Int
+  review    String?
+  mentorId  String
+  mentor    User     @relation("ReceivedRatings", fields: [mentorId], references: [id])
+  menteeId  String
+  mentee    User     @relation("GivenRatings", fields: [menteeId], references: [id])
+  createdAt DateTime @default(now())
+  @@unique([mentorId, menteeId])
+}
+
+model Blog {
+  id        String    @id @default(cuid())
+  title     String
+  content   String    @db.Text
+  imageUrl  String?
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  tags      String[]
+  comments  Comment[]
+  likes     Like[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id])
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  @@unique([blogId, userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String
+  link      String?
+  seen      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
