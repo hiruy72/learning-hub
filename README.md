@@ -70,8 +70,8 @@ Ensure you have the following installed on your machine:
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/hiruy72/Next-JS_backend.git
-   cd Next-JS_backend
+   git clone https://github.com/hiruy72/learning-hub.git
+   cd learning-hub
    ```
 
 2. **Install Dependencies**
@@ -167,6 +167,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 09. CONTACT
 
-**Project Link**: [https://github.com/hiruy72/Next-JS_backend](https://github.com/hiruy72/learning-hub)
+**Project Link**: [https://github.com/hiruy72/learning-hub](https://github.com/hiruy72/learning-hub)
 
 Designed with  for the next generation of engineers.
