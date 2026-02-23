@@ -43,6 +43,9 @@ model User {
   givenRatings     Rating[]          @relation("GivenRatings")
   receivedRatings  Rating[]          @relation("ReceivedRatings")
   notifications     Notification[]
+  weeklyPlans      WeeklyPlan[]
+  conversations    ConversationParticipant[]
+  directMessagesSent DirectMessage[]   @relation("DirectMessagesSent")
 }
 
 model MentorApplication {
@@ -199,4 +202,55 @@ model Notification {
   link      String?
   seen      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model WeeklyPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  weekStart   DateTime
+  tasks       WeeklyTask[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([userId, weekStart])
+}
+
+model WeeklyTask {
+  id          String     @id @default(cuid())
+  weeklyPlanId String
+  weeklyPlan  WeeklyPlan @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dayOfWeek   Int        // 0-6 (Sunday-Saturday)
+  completed   Boolean    @default(false)
+  priority    String     @default("medium") // low, medium, high
+  createdAt   DateTime   @default(now())
+}
+
+model Conversation {
+  id           String    @id @default(cuid())
+  participants ConversationParticipant[]
+  messages     DirectMessage[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime     @default(now())
+  @@unique([userId, conversationId])
+}
+
+model DirectMessage {
+  id             String       @id @default(cuid())
+  content        String
+  senderId       String
+  sender         User         @relation("DirectMessagesSent", fields: [senderId], references: [id])
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
 }

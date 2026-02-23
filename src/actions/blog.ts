@@ -26,6 +26,24 @@ export async function createBlog(formData: {
         },
     });
 
+    // Notify all users about new blog post
+    const users = await db.user.findMany({
+        where: { id: { not: user.id } },
+        select: { id: true },
+    });
+
+    if (users.length > 0) {
+        await db.notification.createMany({
+            data: users.map(u => ({
+                userId: u.id,
+                title: "New Blog Post",
+                message: `${dbUser?.name || "A mentor"} published: ${formData.title}`,
+                type: "BLOG",
+                link: `/blogs/${blog.id}`,
+            })),
+        });
+    }
+
     revalidatePath("/blogs");
     return blog;
 }
@@ -81,6 +99,11 @@ export async function toggleLikeBlog(blogId: string) {
         }
     });
 
+    const blog = await db.blog.findUnique({
+        where: { id: blogId },
+        select: { authorId: true, title: true },
+    });
+
     if (existingLike) {
         await db.like.delete({
             where: { id: existingLike.id }
@@ -89,8 +112,85 @@ export async function toggleLikeBlog(blogId: string) {
         await db.like.create({
             data: { blogId, userId }
         });
+
+        // Notify blog author of the like
+        if (blog && blog.authorId !== userId) {
+            await db.notification.create({
+                data: {
+                    userId: blog.authorId,
+                    title: "New Like",
+                    message: `${session.user.name || "Someone"} liked your blog: ${blog.title}`,
+                    type: "BLOG",
+                    link: `/blogs/${blogId}`,
+                },
+            });
+        }
     }
 
     revalidatePath(`/blogs/${blogId}`);
     revalidatePath("/blogs");
+}
+
+export async function addComment(blogId: string, content: string) {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Unauthorized");
+    const userId = session.user.id;
+
+    const comment = await db.comment.create({
+        data: {
+            blogId,
+            authorId: userId,
+            content,
+        },
+        include: {
+            author: true,
+        },
+    });
+
+    // Notify blog author of the comment
+    const blog = await db.blog.findUnique({
+        where: { id: blogId },
+        select: { authorId: true, title: true },
+    });
+
+    if (blog && blog.authorId !== userId) {
+        await db.notification.create({
+            data: {
+                userId: blog.authorId,
+                title: "New Comment",
+                message: `${session.user.name || "Someone"} commented on: ${blog.title}`,
+                type: "BLOG",
+                link: `/blogs/${blogId}`,
+            },
+        });
+    }
+
+    revalidatePath(`/blogs/${blogId}`);
+    return comment;
+}
+
+export async function deleteComment(commentId: string) {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Unauthorized");
+    const userId = session.user.id;
+
+    const comment = await db.comment.findFirst({
+        where: { id: commentId },
+        include: { blog: true },
+    });
+
+    if (!comment) throw new Error("Comment not found");
+
+    // Only author or blog owner can delete
+    const dbUser = await db.user.findUnique({ where: { id: userId } });
+    if (comment.authorId !== userId && comment.blog.authorId !== userId && dbUser?.role !== "ADMIN") {
+        throw new Error("Unauthorized to delete this comment");
+    }
+
+    await db.comment.delete({
+        where: { id: commentId },
+    });
+
+    revalidatePath(`/blogs/${comment.blogId}`);
+    return { success: true };
 }
