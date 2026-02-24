@@ -231,8 +231,8 @@ export async function getUserConversations() {
         const otherParticipant = conv.participants.find(p => p.userId !== userId);
         const lastMessage = conv.messages[0];
         const currentUserParticipant = conv.participants.find(p => p.userId === userId);
-        const hasUnread = lastMessage && 
-            currentUserParticipant && 
+        const hasUnread = lastMessage &&
+            currentUserParticipant &&
             lastMessage.createdAt > currentUserParticipant.lastReadAt &&
             lastMessage.senderId !== userId;
 
@@ -280,6 +280,74 @@ export async function getUserJoinedCommunities() {
         include: {
             mentor: { select: { id: true, name: true } },
             _count: { select: { members: true, messages: true } },
+        },
+    });
+}
+
+// ============ COMMUNITY MANAGEMENT ============
+
+export async function createCommunity(data: {
+    title: string;
+    description: string;
+    department: string;
+}) {
+    const session = await getSession();
+    if (!session || !session.user || session.user.role !== "MENTOR") {
+        throw new Error("Only mentors can create communities");
+    }
+    const userId = session.user.id;
+
+    const community = await db.community.create({
+        data: {
+            title: data.title,
+            description: data.description,
+            department: data.department,
+            mentorId: userId,
+            members: {
+                create: {
+                    userId,
+                },
+            },
+        },
+    });
+
+    revalidatePath("/dashboard/chat");
+    return community;
+}
+
+export async function joinCommunity(communityId: string) {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Unauthorized");
+    const userId = session.user.id;
+
+    const membership = await db.communityMember.create({
+        data: {
+            userId,
+            communityId,
+        },
+    });
+
+    revalidatePath("/dashboard/chat");
+    return membership;
+}
+
+export async function getAvailableCommunities() {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Unauthorized");
+    const userId = session.user.id;
+
+    // Communities the user is NOT a member of
+    return await db.community.findMany({
+        where: {
+            members: {
+                none: {
+                    userId,
+                },
+            },
+        },
+        include: {
+            mentor: { select: { name: true } },
+            _count: { select: { members: true } },
         },
     });
 }

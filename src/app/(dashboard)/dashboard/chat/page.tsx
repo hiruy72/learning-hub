@@ -1,7 +1,14 @@
 import { syncUser } from "@/actions/user";
 import { redirect } from "next/navigation";
-import { getUserConversations, getAvailableUsers, getUserJoinedCommunities } from "@/actions/chat";
+import {
+    getUserConversations,
+    getAvailableUsers,
+    getUserJoinedCommunities,
+    getAvailableCommunities
+} from "@/actions/chat";
 import { ChatClient } from "./ChatClient";
+
+export const dynamic = "force-dynamic";
 
 export default async function ChatPage({
     searchParams,
@@ -12,11 +19,12 @@ export default async function ChatPage({
     if (!user) redirect("/sign-in");
 
     const params = await searchParams;
-    
-    const [conversations, availableUsers, communities] = await Promise.all([
+
+    const [conversations, availableUsers, communities, availableCommunities] = await Promise.all([
         getUserConversations(),
         getAvailableUsers(),
         getUserJoinedCommunities(),
+        getAvailableCommunities(),
     ]);
 
     return (
@@ -25,6 +33,7 @@ export default async function ChatPage({
             conversations={conversations}
             availableUsers={availableUsers}
             communities={communities}
+            availableCommunities={availableCommunities}
             initialConversationId={params.conversation}
             initialCommunityId={params.community}
         />
